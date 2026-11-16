@@ -10,7 +10,7 @@ This is first a standalone interactive web workbench, not a wallpaper. Windows p
 ## 2. Non-negotiable design constraints
 - No floating island, platform rim, exposed terrain slice, HD-2D pixel aesthetic, or mandatory AI-generated models.
 - Continuous flat ground with road grid and buildable parcels. Isometric/oblique camera, pan/zoom/rotate.
-- Warm, soft, consistent stylized miniature town art direction; avoid mixing incompatible asset packs.
+- **Art direction: faceted low-poly / flat-shaded geometry** with clearly distinguishable polygonal (often triangular) faces, especially on people, trees, cars and props. Abstract minimalist silhouettes, low polygon counts, muted natural colors, no black wireframe overlays. Avoid smooth/clay-like, realistic, pixel-art or overly rounded toy aesthetics; avoid mixing incompatible asset packs.
 - Scene runs independently of task data; an empty task database must still show a living town.
 - Buildings are **projects**, tasks belong to projects; task status is not identical to construction stage.
 - Preserve fast conventional task entry/list/search/editing; 3D is not the only way to operate.
@@ -76,7 +76,7 @@ Separate feasibility spike for Windows desktop host (WorkerW compatibility, Expl
 ## 8. Codex first assignment
 1. Inspect repo and preserve existing work.
 2. Add a minimal runnable Vite/React/Three.js skeleton and README.
-3. Implement a zero-task living town with flat ground, roads, 3–6 pedestrians and environmental motion.
+3. Implement a zero-task living town with flat ground, roads, 3–6 **faceted low-poly geometric** pedestrians and environmental motion.
 4. Implement a single selectable roadside Block and create-project -> construction site -> completed building demo.
 5. Keep all models local; include ASSETS.md with source/license and exact chosen files.
 6. Run build/typecheck, document run commands and known limitations.
@@ -88,3 +88,6 @@ Separate feasibility spike for Windows desktop host (WorkerW compatibility, Expl
 - How should progress map to building stages when tasks change after completion?
 - Should finished buildings remain indefinitely or be archived?
 - Future GitHub/Codex synchronization is out of scope for P0.
+
+## 10. Art direction update (2026-11-16)
+User explicitly prefers abstract minimalist **triangulated/faceted low-poly** characters and objects. Geometry facets should be visible through flat shading and silhouette, **not** a debug wireframe. Favor procedural geometry for P0 pedestrians/trees and simple vehicles, with distinct hard edges and restrained palette. Roads and buildings should share the same low-poly language. Before importing large external asset packs, make a small style-validation scene with one pedestrian, one tree, one car, one building and a road section. Reject assets with smooth realistic shading or incompatible proportions. Preserve the continuous flat town (no islands).
