@@ -49,3 +49,7 @@ Windows 桌面，Node 24.14.0，Chrome 157.0.8103.52，Playwright 驱动无头 C
 复跑时可先执行 `npx playwright install chromium` 再运行 `npm test`。本机使用已安装的 Chrome，PowerShell 设置 `$env:BROWSER_CHANNEL='chrome'`。若系统配置了网络代理，将 localhost 和 127.0.0.1 加入 NO_PROXY 以允许本机生产预览探测。用例会重建上表中的截图和拼图。
 
 本轮没有真机触屏或独立显卡性能测量。请分别验收横向铺开的固定构图、投影偏好，以及人物、树木和车辆的切面风格。
+
+## 视觉反馈后的固定角度候选
+
+在相同场景及开场倍率下，通过 `?camera=ortho&framing=frontal` 可复现第二个构图候选。俯角降至 32°，水平偏角减至 3°。横街更接近水平，店铺正面更完整，代价是地块在屏幕上的纵深变短。可在页面内切换弱透视继续比较。已在 Chrome 实际打开正交候选，并以 1366 × 768 截图核对店铺、道路和空地。该候选等待视觉验收。[较低俯角截图](screenshots/frontal-compact.png)

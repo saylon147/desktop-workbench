@@ -21,8 +21,9 @@ export function mountView(
   const world = makeWorld();
   const ortho = new T.OrthographicCamera(-1, 1, 1, -1, 0.1, 350);
   const perspective = new T.PerspectiveCamera(20, 1, 0.1, 350);
-  const yaw = T.MathUtils.degToRad(9),
-    pitch = T.MathUtils.degToRad(48);
+  const frontal = new URL(location.href).searchParams.get("framing") === "frontal";
+  const yaw = T.MathUtils.degToRad(frontal ? 3 : 9),
+    pitch = T.MathUtils.degToRad(frontal ? 32 : 48);
   const back = new T.Vector3(
     Math.sin(yaw) * Math.cos(pitch),
     Math.sin(pitch),
