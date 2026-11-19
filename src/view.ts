@@ -21,15 +21,16 @@ export function mountView(
   const world = makeWorld();
   const ortho = new T.OrthographicCamera(-1, 1, 1, -1, 0.1, 350);
   const perspective = new T.PerspectiveCamera(20, 1, 0.1, 350);
-  const frontal = new URL(location.href).searchParams.get("framing") === "frontal";
-  const yaw = T.MathUtils.degToRad(frontal ? 3 : 9),
-    pitch = T.MathUtils.degToRad(frontal ? 32 : 48);
+  const frontal =
+    new URL(location.href).searchParams.get("framing") === "frontal";
+  const yaw = T.MathUtils.degToRad(frontal ? 3 : 0),
+    pitch = T.MathUtils.degToRad(frontal ? 32 : 42);
   const back = new T.Vector3(
     Math.sin(yaw) * Math.cos(pitch),
     Math.sin(pitch),
     Math.cos(yaw) * Math.cos(pitch),
   );
-  const home = new T.Vector3(-0.8, 0, -1.9),
+  const home = new T.Vector3(0, 0, -1.6),
     target = home.clone();
   let preset = openingPreset(),
     zoom = 1,
@@ -195,12 +196,7 @@ export function mountView(
   window.addEventListener(
     "keydown",
     (e) => {
-      if (
-        e.ctrlKey ||
-        e.altKey ||
-        e.metaKey
-      )
-        return;
+      if (e.ctrlKey || e.altKey || e.metaKey) return;
       const dir = keys[e.key.toLowerCase()];
       if (!dir) return;
       e.preventDefault();

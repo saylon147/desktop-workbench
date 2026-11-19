@@ -1,6 +1,6 @@
 import * as T from "three";
 
-export const lot = { x: 8.1, z: -3.7, width: 8, depth: 6.5 };
+export const lot = { x: 8.4, z: 4.5, width: 8, depth: 6.5 };
 
 export function makeWorld() {
   const scene = new T.Scene();
@@ -107,54 +107,212 @@ export function makeWorld() {
       z - d / 2,
     );
   }
-  box(scene, "#b6c29a", 0, -0.14, 0, 800, 0.24, 800).castShadow = false;
+  box(scene, "#e9d1b3", 0, -0.14, 0, 800, 0.24, 800).castShadow = false;
   let seed = 1271;
   function random() {
     seed = (1664525 * seed + 1013904223) >>> 0;
     return seed / 4294967296;
   }
-  const blades = new T.Object3D();
-  const tufts = new T.InstancedMesh(
-    new T.ConeGeometry(0.11, 0.32, 3),
-    new T.MeshStandardMaterial({ color: "#90a077", flatShading: true }),
-    1300,
+  // Paint a broad meadow into the continuous terrain. The feathered verge
+  // leaves the landscape legible as one spread at both camera distances.
+  const meadow = document.createElement("canvas");
+  meadow.width = 1024;
+  meadow.height = 640;
+  const paint = meadow.getContext("2d")!;
+  paint.fillStyle = "#e9d1b3";
+  paint.fillRect(0, 0, 1024, 640);
+  paint.filter = "blur(13px)";
+  paint.fillStyle = "#d4c89e";
+  paint.beginPath();
+  paint.roundRect(55, 52, 914, 536, 55);
+  paint.fill();
+  const meadowMap = new T.CanvasTexture(meadow);
+  meadowMap.colorSpace = T.SRGBColorSpace;
+  const meadowSurface = new T.Mesh(
+    new T.PlaneGeometry(38, 25),
+    new T.MeshStandardMaterial({ map: meadowMap, roughness: 1 }),
   );
-  let count = 0;
-  for (let i = 0; i < 650; i++) {
-    const x = random() * 82 - 41,
-      z = random() * 56 - 28;
-    if (
-      Math.abs(z - 3.8) < 3.4 ||
-      (Math.abs(x - 1) < 2.8 && z < 6) ||
-      (z < 1 && z > -11 && x > -15 && x < 13)
-    )
-      continue;
-    for (let j = 0; j < 2; j++) {
-      blades.position.set(x + j * 0.14, 0.07, z);
-      blades.rotation.z = random() * 0.6 - 0.3;
-      blades.scale.setScalar(0.5 + random() * 0.65);
-      blades.updateMatrix();
-      tufts.setMatrixAt(count++, blades.matrix);
+  meadowSurface.rotation.x = -Math.PI / 2;
+  meadowSurface.receiveShadow = true;
+  scene.add(meadowSurface);
+
+  // One winding lane and a short branch. Offset each verge from the
+  // same centreline so the paving follows every bend continuously.
+  function lane(coords: number[][], width: number, height: number) {
+    const curve = new T.CatmullRomCurve3(
+      coords.map(([x, z]) => new T.Vector3(x, 0, z)),
+    );
+    const samples = curve.getSpacedPoints(64);
+    function strip(radius: number, y: number, color: string) {
+      const vertices: number[] = [],
+        indices: number[] = [];
+      samples.forEach((point, i) => {
+        const tangent = curve.getTangentAt(i / (samples.length - 1));
+        const nx = -tangent.z * radius,
+          nz = tangent.x * radius;
+        vertices.push(
+          point.x + nx,
+          y,
+          point.z + nz,
+          point.x - nx,
+          y,
+          point.z - nz,
+        );
+        if (i > 0) {
+          const j = 2 * i;
+          indices.push(j - 2, j, j - 1, j - 1, j, j + 1);
+        }
+      });
+      const geometry = new T.BufferGeometry();
+      geometry.setAttribute(
+        "position",
+        new T.Float32BufferAttribute(vertices, 3),
+      );
+      geometry.setIndex(indices);
+      geometry.computeVertexNormals();
+      const surface = mesh(scene, geometry, color, 0, 0, 0);
+      surface.castShadow = false;
+    }
+    strip(width / 2 + 0.48, height, "#ebdcc2");
+    strip(width / 2, height + 0.015, "#98a5a2");
+    return samples;
+  }
+  const branch = lane(
+    [
+      [-2, 0],
+      [-0.9, -3.7],
+      [1, -6.5],
+      [3, -8.1],
+    ],
+    1.6,
+    0.025,
+  );
+  const road = lane(
+    [
+      [-13, -7.7],
+      [-12, -4],
+      [-9, -1.5],
+      [-5, -0.6],
+      [-2, 0],
+      [1.3, -0.2],
+      [4.5, -2.6],
+      [8, -4.5],
+      [12, -4.4],
+      [14, -2.4],
+      [14.4, 0.4],
+    ],
+    2.15,
+    0.055,
+  );
+  // Small turning heads finish the three lane ends inside the meadow.
+  for (const end of [
+    road[0],
+    road[road.length - 1],
+    branch[branch.length - 1],
+  ]) {
+    const radius = end === branch[branch.length - 1] ? 1 : 1.35;
+    for (const [extra, y, color] of [
+      [0.45, 0.019, "#ebdcc2"],
+      [0, 0.023, "#98a5a2"],
+    ] as const) {
+      const disc = mesh(
+        scene,
+        new T.CylinderGeometry(radius + extra, radius + extra, 0.012, 16),
+        color,
+        end.x,
+        y,
+        end.z,
+      );
+      disc.castShadow = false;
     }
   }
-  tufts.count = count;
-  scene.add(tufts);
-  // A single T intersection. Sidewalk aprons and dashed paint stop at the junction.
-  box(scene, "#d1c4ad", 0, 0.008, 3.8, 300, 0.05, 5.9);
-  box(scene, "#d1c4ad", 1, 0.012, -72.8, 4.9, 0.06, 151);
-  box(scene, "#777d78", 0, 0.052, 3.8, 300, 0.03, 3.7);
-  box(scene, "#777d78", 1, 0.054, -73.1, 3.15, 0.03, 151);
-  for (let i = -25; i <= 25; i++)
-    if (Math.abs(i * 3 - 1) > 2.4)
-      box(scene, "#e6d9b7", i * 3, 0.075, 3.8, 1.45, 0.012, 0.085);
-  for (let i = 0; i < 30; i++)
-    box(scene, "#e6d9b7", 1, 0.076, -1.5 - i * 3, 0.085, 0.012, 1.4);
-  for (let i = 0; i < 6; i++)
-    box(scene, "#f1e7cf", 3.4, 0.077, 2.35 + i * 0.57, 1.05, 0.012, 0.27);
-  for (let i = 0; i < 5; i++)
-    box(scene, "#f1e7cf", -0.19 + i * 0.58, 0.078, 0.95, 0.29, 0.012, 0.8);
+  for (let i = 3; i < road.length - 2; i += 4) {
+    if (Math.abs(road[i].x + 2) < 2) continue;
+    const centre = road[i],
+      next = road[i + 1];
+    const dash = box(
+      scene,
+      "#e5d9b7",
+      centre.x,
+      0.078,
+      centre.z,
+      0.65,
+      0.012,
+      0.065,
+    );
+    dash.rotation.y = -Math.atan2(next.z - centre.z, next.x - centre.x);
+  }
+  const paving = [...road, ...branch];
+  // Flowering verges and small stone clusters give the foreground and
+  // background scale without adding further buildings or pedestrians.
+  const sprig = new T.Object3D();
+  const flowers = new T.InstancedMesh(
+    new T.IcosahedronGeometry(1, 0),
+    new T.MeshStandardMaterial({ flatShading: true }),
+    1500,
+  );
+  const colors = [
+    "#b1b681",
+    "#a6aa78",
+    "#d8bb85",
+    "#d79475",
+    "#bba6b3",
+    "#eee2b4",
+  ];
+  let count = 0;
+  for (let i = 0; i < 250; i++) {
+    const x = random() * 31 - 15.5,
+      z = random() * 17 - 8.5;
+    if (
+      paving.some((p) => Math.hypot(x - p.x, z - p.z) < 2.1) ||
+      (Math.abs(x + 6.6) < 4 && Math.abs(z - 4.4) < 4.2) ||
+      (Math.abs(x - lot.x) < 4.5 && Math.abs(z - lot.z) < 3.9)
+    )
+      continue;
+    const color = colors[Math.floor(random() * colors.length)];
+    for (let j = 0; j < 6; j++) {
+      const size = 0.07 + random() * 0.17;
+      sprig.position.set(x + random() * 0.95, 0.09, z + random() * 0.54);
+      sprig.scale.set(size, size * (j % 3 === 0 ? 2 : 1), size);
+      sprig.rotation.y = random() * 6;
+      sprig.updateMatrix();
+      flowers.setMatrixAt(count, sprig.matrix);
+      flowers.setColorAt(count++, new T.Color(j % 2 === 0 ? color : "#a4ac78"));
+    }
+  }
+  flowers.count = count;
+  flowers.castShadow = true;
+  scene.add(flowers);
+
+  // A slender irrigation windpump anchors the far-right skyline.
+  const pump = group(10, -7.6);
+  for (const x of [-0.75, 0.75])
+    for (const z of [-0.65, 0.65]) {
+      post(pump, "#928269", [x, 0, z], [x * 0.25, 4.5, z * 0.25], 0.11, 0.07);
+      post(pump, "#aa9378", [x, 0.5, z], [-x * 0.6, 2.7, z * 0.6], 0.052);
+    }
+  box(pump, "#b08a65", 0, 3.25, 0, 1.18, 0.17, 1.1);
+  for (let i = 0; i < 10; i++) {
+    const rotor = new T.Group();
+    rotor.position.set(0, 4.6, 0.3);
+    rotor.rotation.z = (i * Math.PI) / 5;
+    pump.add(rotor);
+    box(rotor, "#ae8271", 0, 0.63, 0, 0.07, 1.26, 0.08);
+    const vane = box(
+      rotor,
+      i % 2 ? "#b7c2b8" : "#d1dad0",
+      0.09,
+      1.03,
+      0.03,
+      0.39,
+      0.68,
+      0.07,
+    );
+    vane.rotation.y = 0.35;
+  }
+  stone(pump, "#be795b", 0, 4.6, 0.42, 0.23, 0.23, 0.16);
   const parcel = group(lot.x, lot.z);
-  const turf = box(parcel, "#cbd0a6", 0, 0.016, 0, lot.width, 0.055, lot.depth);
+  const turf = box(parcel, "#c2b488", 0, 0.016, 0, lot.width, 0.055, lot.depth);
   for (const sign of [-1, 1]) {
     box(parcel, "#ede7ca", 0, 0.051, sign * 3.17, 7.92, 0.016, 0.1);
     box(parcel, "#ede7ca", sign * 3.92, 0.051, 0, 0.1, 0.016, 6.4);
@@ -181,7 +339,7 @@ export function makeWorld() {
   label.position.y = 0.069;
   parcel.add(label);
   // Corner bakery, with clay standing seams and a striped linen canopy.
-  const house = group(-7.3, -4.2);
+  const house = group(-6.6, 4.4);
   box(house, "#c6b79e", 0, 0.075, 0.2, 7.1, 0.15, 7.5);
   box(house, "#e4c9a1", 0, 1.6, 0, 5.1, 3.1, 4.2);
   box(house, "#987f66", 0, 0.34, 0, 5.16, 0.48, 4.26);
@@ -256,14 +414,15 @@ export function makeWorld() {
     2.16,
   );
   loft.rotation.x = Math.PI / 2;
-  const tree = group(-12.9, -0.8);
+  const tree = group(-5.3, -6.3);
   post(tree, "#866d52", [0, 0, 0], [0.16, 3.4, 0.12], 0.33, 0.17);
   post(tree, "#866d52", [0.08, 1.8, 0], [-1.15, 3.35, 0.18], 0.21, 0.1);
   stone(tree, "#79905e", -1.03, 3.42, 0, 1.55, 1.47, 1.43, 1);
   stone(tree, "#91a568", 0.42, 4.26, -0.3, 1.87, 1.93, 1.67, 1);
   stone(tree, "#a9b572", 1.13, 3.45, 0.46, 1.17, 1.23, 1.15);
   // Parked station wagon with a tapered cabin and inset side glazing.
-  const car = group(7.8, 4.64);
+  const car = group(3.3, -1.7);
+  car.rotation.y = 0.68;
   box(car, "#b56945", 0, 0.56, 0, 3.35, 0.64, 1.43);
   box(car, "#d49b69", -1.12, 0.87, 0, 1.04, 0.13, 1.42);
   const cabin = mesh(
@@ -300,7 +459,7 @@ export function makeWorld() {
     }
     box(car, "#f0d7a4", -1.69, 0.64, s * 0.47, 0.08, 0.22, 0.29);
   }
-  const person = group(-3.65, 1.19);
+  const person = group(-3.2, 2.05);
   person.rotation.y = -0.34;
   for (const s of [-1, 1]) {
     post(
@@ -342,7 +501,7 @@ export function makeWorld() {
   return {
     scene,
     setSelected(value: boolean) {
-      turf.material.color.set(value ? "#a4c59a" : "#cbd0a6");
+      turf.material.color.set(value ? "#a4c59a" : "#c2b488");
     },
     dispose() {
       const geos = new Set<T.BufferGeometry>(),
@@ -357,6 +516,7 @@ export function makeWorld() {
       geos.forEach((g) => g.dispose());
       mats.forEach((m) => m.dispose());
       ink.dispose();
+      meadowMap.dispose();
       sun.shadow.dispose();
     },
   };
